@@ -1,0 +1,92 @@
+# Subnet Calculator custom resource available to the AWS Organization via SNS. 
+# SAM template
+#
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: Subnet Calculator custom CloudFormation resource used by VPCs
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  OrgID:
+    Description: Organization ID
+    Type: String
+    AllowedPattern: ^o-.*$
+
+Resources:
+  SubnetCalculatorV1Lambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.12
+      MemorySize: 128
+      Role: !GetAtt SubnetCalculatorV1Role.Arn
+      Timeout: 60
+      CodeUri: src/
+      Handler: subnet_calculator_v1.handler
+
+
+  SubnetCalculatorV1Topic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: SubnetCalculatorV1
+      DisplayName: Subnet calculator V1 custom CloudFormation resource used by VPCs
+      Subscription:
+        - Endpoint: !GetAtt SubnetCalculatorV1Lambda.Arn
+          Protocol: lambda
+
+
+  SubnetCalculatorV1TopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: F18
+            reason: Conditions restrict it to the Organization
+    Properties:
+      Topics:
+        - !Ref SubnetCalculatorV1Topic
+      PolicyDocument:
+        Statement:
+          - Sid: AllowPublication
+            Effect: Allow
+            Principal:
+              AWS: "*"
+            Action:
+              - sns:Publish
+            Resource: !Ref SubnetCalculatorV1Topic
+            Condition:
+              StringEquals:
+                aws:PrincipalOrgID: !Ref OrgID
+              ForAnyValue:StringEquals:
+                aws:CalledVia: [ "cloudformation.amazonaws.com" ]
+
+
+  SubnetCalculatorV1Role:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ lambda.amazonaws.com ]
+            Action: [ sts:AssumeRole ]
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+
+  SubnetCalculatorV1LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt SubnetCalculatorV1Lambda.Arn
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref SubnetCalculatorV1Topic
+
+      
+Outputs:
+  SNSTopicArn:
+    Description: SNS Topic Arn to use in spoke templates
+    Value: !Ref SubnetCalculatorV1Topic

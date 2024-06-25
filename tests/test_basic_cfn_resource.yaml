@@ -1,0 +1,59 @@
+# Test template that creates a subnet calculator custom resource (not an actual VPC)
+
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: Test Subnet Calculator CFN resource, this stack can be deleted
+
+Parameters:
+  NetworkAccountID:
+    Description: Network account ID
+    Type: String
+
+Resources:
+  SubnetCalculator:
+    Type: Custom::SubnetCalculator
+    Properties:
+      ServiceToken: !Sub arn:aws:sns:${AWS::Region}:${NetworkAccountID}:SubnetCalculatorV1
+      VPCNetwork: 10.113.248.0/23
+      AZs: 3
+      Subnets:
+        - Label: Private1
+          Prefix: 26
+        - Label: Private2
+          Prefix: 27
+        - Label: Public
+          Prefix: 27
+        - Label: TGW
+          Prefix: 28
+
+
+Outputs:
+  Private1SubnetA:
+    Value: !Select [ 0, !GetAtt SubnetCalculator.Private1 ]
+  Private1SubnetB:
+    Value: !Select [ 1, !GetAtt SubnetCalculator.Private1 ]
+  Private1SubnetC:
+    Value: !Select [ 2, !GetAtt SubnetCalculator.Private1 ]
+
+  Private2SubnetA:
+    Value: !Select [ 0, !GetAtt SubnetCalculator.Private2 ]
+  Private2SubnetB:
+    Value: !Select [ 1, !GetAtt SubnetCalculator.Private2 ]
+  Private2SubnetC:
+    Value: !Select [ 2, !GetAtt SubnetCalculator.Private2 ]
+
+  PublicSubnetA:
+    Value: !Select [ 0, !GetAtt SubnetCalculator.Public ]
+  PublicSubnetB:
+    Value: !Select [ 1, !GetAtt SubnetCalculator.Public ]
+  PublicSubnetC:
+    Value: !Select [ 2, !GetAtt SubnetCalculator.Public ]
+
+  TGWSubnetA:
+    Value: !Select [ 0, !GetAtt SubnetCalculator.TGW ]
+  TGWSubnetB:
+    Value: !Select [ 1, !GetAtt SubnetCalculator.TGW ]
+  TGWSubnetC:
+    Value: !Select [ 2, !GetAtt SubnetCalculator.TGW ]
